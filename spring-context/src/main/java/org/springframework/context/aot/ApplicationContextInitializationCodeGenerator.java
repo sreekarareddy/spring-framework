@@ -30,19 +30,19 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.annotation.ContextAnnotationAutowireCandidateResolver;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.javapoet.CodeBlock;
 import org.springframework.javapoet.MethodSpec;
 import org.springframework.javapoet.ParameterizedTypeName;
 import org.springframework.javapoet.TypeSpec;
 
 /**
- * Internal code generator to create the application context initializer.
+ * Internal code generator to create the {@link ApplicationContextInitializer}.
  *
  * @author Phillip Webb
  * @since 6.0
  */
-class ApplicationContextInitializationCodeGenerator
-		implements BeanFactoryInitializationCode {
+class ApplicationContextInitializationCodeGenerator implements BeanFactoryInitializationCode {
 
 	private static final String INITIALIZE_METHOD = "initialize";
 
@@ -70,28 +70,28 @@ class ApplicationContextInitializationCodeGenerator
 		type.addMethod(generateInitializeMethod());
 	}
 
-
 	private MethodSpec generateInitializeMethod() {
 		MethodSpec.Builder method = MethodSpec.methodBuilder(INITIALIZE_METHOD);
 		method.addAnnotation(Override.class);
 		method.addModifiers(Modifier.PUBLIC);
-		method.addParameter(GenericApplicationContext.class,
-				APPLICATION_CONTEXT_VARIABLE);
+		method.addParameter(GenericApplicationContext.class, APPLICATION_CONTEXT_VARIABLE);
 		method.addCode(generateInitializeCode());
 		return method.build();
 	}
 
 	private CodeBlock generateInitializeCode() {
-		CodeBlock.Builder builder = CodeBlock.builder();
-		builder.addStatement("$T $L = $L.getDefaultListableBeanFactory()",
+		CodeBlock.Builder code = CodeBlock.builder();
+		code.addStatement("$T $L = $L.getDefaultListableBeanFactory()",
 				DefaultListableBeanFactory.class, BEAN_FACTORY_VARIABLE,
 				APPLICATION_CONTEXT_VARIABLE);
-		builder.addStatement("$L.setAutowireCandidateResolver(new $T())",
+		code.addStatement("$L.setAutowireCandidateResolver(new $T())",
 				BEAN_FACTORY_VARIABLE, ContextAnnotationAutowireCandidateResolver.class);
+		code.addStatement("$L.setDependencyComparator($T.INSTANCE)",
+				BEAN_FACTORY_VARIABLE, AnnotationAwareOrderComparator.class);
 		for (MethodReference initializer : this.initializers) {
-			builder.addStatement(initializer.toInvokeCodeBlock(CodeBlock.of(BEAN_FACTORY_VARIABLE)));
+			code.addStatement(initializer.toInvokeCodeBlock(CodeBlock.of(BEAN_FACTORY_VARIABLE)));
 		}
-		return builder.build();
+		return code.build();
 	}
 
 	GeneratedClass getGeneratedClass() {
